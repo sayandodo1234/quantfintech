@@ -11,13 +11,13 @@ from distutils.core import setup
 setup(
   name = 'quantfintech',         
   packages = ['quantfintech'],   
-  version = '0.1',      
+  version = '0.2',      
   license='MIT',       
   description = 'A libraray for quantitative finance and algo trading.',   
   author = 'Sayan De Bhowmick',                   
   author_email = 'debhowmick.sayan@gmail.com',      
   url = 'https://github.com/sayandodo1234/quantfintech',   
-  download_url = 'https://github.com/sayandodo1234/quantfintech/archive/refs/tags/v_01.4.zip',    
+  download_url = 'https://github.com/sayandodo1234/quantfintech/archive/refs/tags/v_02.1.zip',    
   keywords = ['Technical Indicators', 'Quant Analysis', 'Algo trading'],
   install_requires=[           
           'pandas',
