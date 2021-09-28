@@ -10,7 +10,7 @@ Created on Tue Sep 28 18:40:23 2021
 from distutils.core import setup
 setup(
   name = 'quantfintech',         
-  packages = ['quantfintech','assist'],   
+  packages = ['quantfintech'],   
   version = '0.1',      
   license='MIT',       
   description = 'A libraray for quantitative finance and algo trading.',   
