@@ -17,7 +17,7 @@ setup(
   author = 'Sayan De Bhowmick',                   
   author_email = 'debhowmick.sayan@gmail.com',      
   url = 'https://github.com/sayandodo1234/quantfintech',   
-  download_url = 'https://github.com/sayandodo1234/quantfintech/archive/refs/tags/v_01.tar.gz',    
+  download_url = 'https://github.com/sayandodo1234/quantfintech/archive/refs/tags/v_01.2.zip',    
   keywords = ['Technical Indicators', 'Quant Analysis', 'Algo trading'],
   install_requires=[           
           'pandas',
