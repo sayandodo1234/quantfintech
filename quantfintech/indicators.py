@@ -39,9 +39,17 @@ class Security:
 
 
 class RSI(Security):
+    
+    def __init__(self,ohlc_df,window, exponential_moving=True,decay_type="com",decay_value=-1.0,alpha_val=-1):
+        Security.__init__(self,ohlc_df)
+        self.window = window
+        self.exponential_moving = exponential_moving
+        self.decay_type = decay_type
+        self.decay_value = decay_value
+        self.alpha_val = alpha_val
 
 
-    def compute(self, window, exponential_moving=True,decay_type="com",decay_value=-1.0,alpha_val=-1):
+    def compute(self):
         "function to calculate RSI"
         df = self.ohlc_df.copy(deep=True)
         delta = df["close"].diff().dropna()
@@ -50,57 +58,69 @@ class RSI(Security):
         u[delta > 0] = delta[delta > 0]
         d[delta < 0] = -delta[delta < 0]
         # first value is average of gains
-        u[u.index[window-1]] = np.mean(u[:window])
-        u = u.drop(u.index[:(window-1)])
+        u[u.index[self.window-1]] = np.mean(u[:self.window])
+        u = u.drop(u.index[:(self.window-1)])
         # first value is average of losses
-        d[d.index[window-1]] = np.mean(d[:window])
-        d = d.drop(d.index[:(window-1)])
-        if exponential_moving == True:
-            at.exponential_moving_parameter_check(decay_type,alpha_val)
-            num = at.compute_exponential_moving(u,window,decay_type,decay_value,alpha_val).mean()
-            dem = at.compute_exponential_moving(d,window,decay_type,decay_value,alpha_val).mean()
+        d[d.index[self.window-1]] = np.mean(d[:self.window])
+        d = d.drop(d.index[:(self.window-1)])
+        if self.exponential_moving == True:
+            at.exponential_moving_parameter_check(self.decay_type,self.alpha_val)
+            num = at.compute_exponential_moving(u,self.window,self.decay_type,self.decay_value,self.alpha_val).mean()
+            dem = at.compute_exponential_moving(d,self.window,self.decay_type,self.decay_value,self.alpha_val).mean()
             rs = num/dem
-                 
-           # rs = u.ewm(com=window, min_periods=window).mean() / \
-                #d.ewm(com=window, min_periods=window).mean()
+
         else:
-            rs = u.rolling(window).mean()/d.rolling(window).mean()
+            rs = u.rolling(self.window).mean()/d.rolling(self.window).mean()
         df["rsi"] = 100 - 100 / (1+rs)
         return df
 
-
 class ATR(Security):
+    
+    def __init__(self,ohlc_df,window, exponential_moving=True,decay_type="com",decay_value=-1.0,alpha_val=-1):
+        Security.__init__(self,ohlc_df)
+        self.window = window
+        self.exponential_moving = exponential_moving
+        self.decay_type = decay_type
+        self.decay_value = decay_value
+        self.alpha_val = alpha_val
 
-    def compute(self, window, exponential_moving=True,decay_type="com",decay_value=-1.0,alpha_val=-1):
+    def compute(self):
 
         df = self.ohlc_df.copy(deep=True)
         df['H-L'] = abs(df['high']-df['low'])
         df['H-PC'] = abs(df['high']-df['close'].shift(1))
         df['L-PC'] = abs(df['low']-df['close'].shift(1))
         df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1, skipna=False)
-        if exponential_moving == True:
-            at.exponential_moving_parameter_check(decay_type,alpha_val)
-            df['ATR'] = at.compute_exponential_moving(df['TR'],window,decay_type,decay_value,alpha_val).mean()
+        if self.exponential_moving == True:
+            at.exponential_moving_parameter_check(self.decay_type,self.alpha_val)
+            df['ATR'] = at.compute_exponential_moving(df['TR'],self.window,self.decay_type,self.decay_value,self.alpha_val).mean()
         else:
-            df['ATR'] = df['TR'].rolling(window).mean()
+            df['ATR'] = df['TR'].rolling(self.window).mean()
 
 
         return df
 
 
 class BollingerBand(Security):
+    
+    
+    def __init__(self,ohlc_df,window,multiplier):
+        Security.__init__(self,ohlc_df)
+        self.window = window
+        self.multiplier = multiplier
+    
 
-    def compute(self, window, multiplier):
+    def compute(self):
         "function to calculate Bollinger Band"
         df = self.ohlc_df.copy(deep=True)
-        df["MA"] = df['close'].rolling(window).mean()
+        df["MA"] = df['close'].rolling(self.window).mean()
         #df["MA"] = df['close'].ewm(span=n,min_periods=n).mean()
         # ddof=0 is required since we want to take the standard deviation of the population and not sample
-        df["BB_up"] = df["MA"] + multiplier * \
-        df['close'].rolling(window).std(ddof=0)
+        df["BB_up"] = df["MA"] + self.multiplier * \
+        df['close'].rolling(self.window).std(ddof=0)
         # ddof=0 is required since we want to take the standard deviation of the population and not sample
-        df["BB_dn"] = df["MA"] - multiplier * \
-        df['close'].rolling(window).std(ddof=0)
+        df["BB_dn"] = df["MA"] - self.multiplier * \
+        df['close'].rolling(self.window).std(ddof=0)
         df["BB_width"] = df["BB_up"] - df["BB_dn"]
         df.dropna(inplace=True)
 
@@ -108,27 +128,37 @@ class BollingerBand(Security):
 
 class MACD(Security):
     
-    def compute(self,ma_fast_window=12,ma_slow_window=26,ma_signal_window=9,exponential_moving=True,decay_type="span",decay_value=-1.0,alpha_val=-1):
+    def __init__(self,ohlc_df,ma_fast_window=12,ma_slow_window=26,ma_signal_window=9,exponential_moving=True,decay_type="span",decay_value=-1.0,alpha_val=-1):
+        Security.__init__(self,ohlc_df)
+        self.ma_fast_window= ma_fast_window
+        self.ma_slow_window=ma_slow_window
+        self.ma_signal_window = ma_signal_window
+        self.exponential_moving = exponential_moving
+        self.decay_type = decay_type
+        self.decay_value = decay_value
+        self.alpha_val = alpha_val
+        
+    def compute(self):
         """function to calculate MACD
        typical values a(fast moving average) = 12; 
                       b(slow moving average) =26; 
                       c(signal line ma window) =9"""
         
         df = self.ohlc_df.copy(deep=True)
-        if exponential_moving == True:
-            at.exponential_moving_parameter_check(decay_type,alpha_val)
-            df["MA_Fast"] = at.compute_exponential_moving(df["close"],ma_fast_window,decay_type,decay_value,alpha_val).mean()
+        if self.exponential_moving == True:
+            at.exponential_moving_parameter_check(self.decay_type,self.alpha_val)
+            df["MA_Fast"] = at.compute_exponential_moving(df["close"],self.ma_fast_window,self.decay_type,self.decay_value,self.alpha_val).mean()
             #df["MA_Fast"]=df["close"].ewm(span=ma_fast_window,min_periods=ma_fast_window).mean()
-            df["MA_Slow"] = at.compute_exponential_moving(df["close"],ma_slow_window,decay_type,decay_value,alpha_val).mean()
+            df["MA_Slow"] = at.compute_exponential_moving(df["close"],self.ma_slow_window,self.decay_type,self.decay_value,self.alpha_val).mean()
             #df["MA_Slow"]=df["close"].ewm(span=ma_slow_window,min_periods=ma_slow_window).mean()
             df["MACD"]=df["MA_Fast"]-df["MA_Slow"]
-            df["Signal"]=at.compute_exponential_moving(df["MACD"],ma_signal_window,decay_type,decay_value,alpha_val).mean()
+            df["Signal"]=at.compute_exponential_moving(df["MACD"],self.ma_signal_window,self.decay_type,self.decay_value,self.alpha_val).mean()
             #df["Signal"]=df["MACD"].ewm(span=ma_signal_window,min_periods=ma_signal_window).mean()
         else:
-            df["MA_Fast"]=df["close"].rolling(ma_fast_window).mean()
-            df["MA_Slow"]=df["close"].rolling(ma_slow_window).mean()
+            df["MA_Fast"]=df["close"].rolling(self.ma_fast_window).mean()
+            df["MA_Slow"]=df["close"].rolling(self.ma_slow_window).mean()
             df["MACD"]=df["MA_Fast"]-df["MA_Slow"]
-            df["Signal"]=df["MACD"].rolling(ma_signal_window).mean()
+            df["Signal"]=df["MACD"].rolling(self.ma_signal_window).mean()
             
 
         df.dropna(inplace=True)
@@ -136,7 +166,11 @@ class MACD(Security):
     
 class ADX(Security):
     
-    def compute(self,window):#,decay_value=-1.0,alpha_val=-1):
+    def __init__(self,ohlc_df,window):
+        Security.__init__(self,ohlc_df)
+        self.window = window
+    
+    def compute(self):
         "function to calculate ADX"
         df2 = self.ohlc_df.copy(deep=True)
         df2['H-L']=abs(df2['high']-df2['low'])
@@ -154,18 +188,18 @@ class ADX(Security):
         DMplus = df2['DMplus'].tolist()
         DMminus = df2['DMminus'].tolist()
         for i in range(len(df2)):
-            if i < window:
+            if i < self.window:
                 TRn.append(np.NaN)
                 DMplusN.append(np.NaN)
                 DMminusN.append(np.NaN)
-            elif i == window:
-                TRn.append(df2['TR'].rolling(window).sum().tolist()[window])
-                DMplusN.append(df2['DMplus'].rolling(window).sum().tolist()[window])
-                DMminusN.append(df2['DMminus'].rolling(window).sum().tolist()[window])
-            elif i > window:
-                TRn.append(TRn[i-1] - (TRn[i-1]/window) + TR[i])
-                DMplusN.append(DMplusN[i-1] - (DMplusN[i-1]/window) + DMplus[i])
-                DMminusN.append(DMminusN[i-1] - (DMminusN[i-1]/window) + DMminus[i])
+            elif i == self.window:
+                TRn.append(df2['TR'].rolling(self.window).sum().tolist()[self.window])
+                DMplusN.append(df2['DMplus'].rolling(self.window).sum().tolist()[self.window])
+                DMminusN.append(df2['DMminus'].rolling(self.window).sum().tolist()[self.window])
+            elif i > self.window:
+                TRn.append(TRn[i-1] - (TRn[i-1]/self.window) + TR[i])
+                DMplusN.append(DMplusN[i-1] - (DMplusN[i-1]/self.window) + DMplus[i])
+                DMminusN.append(DMminusN[i-1] - (DMminusN[i-1]/self.window) + DMminus[i])
         df2['TRn'] = np.array(TRn)
         df2['DMplusN'] = np.array(DMplusN)
         df2['DMminusN'] = np.array(DMminusN)
@@ -177,28 +211,34 @@ class ADX(Security):
         ADX_list = []
         DX = df2['DX'].tolist()
         for j in range(len(df2)):
-            if j < 2*window-1:
+            if j < 2*self.window-1:
                 ADX_list.append(np.NaN)
-            elif j == 2*window-1:
-                ADX_list.append(df2['DX'][j-window+1:j+1].mean())
-            elif j > 2*window-1:
-                ADX_list.append(((window-1)*ADX_list[j-1] + DX[j])/window)
+            elif j == 2*self.window-1:
+                ADX_list.append(df2['DX'][j-self.window+1:j+1].mean())
+            elif j > 2*self.window-1:
+                ADX_list.append(((self.window-1)*ADX_list[j-1] + DX[j])/self.window)
         df2['ADX']=np.array(ADX_list)
         return df2
     
 class Supertrend(Security): 
     
-    def compute(self,window,multiplier):
+        
+    def __init__(self,ohlc_df,window,multiplier):
+        Security.__init__(self,ohlc_df)
+        self.window = window
+        self.multiplier = multiplier
+    
+    def compute(self):
         df = self.ohlc_df.copy(deep=True)
-        df = ATR(df,window).compute_atr(window)
-        df["B-U"]=((df['high']+df['low'])/2) + multiplier*df['ATR'] 
-        df["B-L"]=((df['high']+df['low'])/2) - multiplier*df['ATR']
+        df = ATR(df,self.window).compute_atr(self.window)
+        df["B-U"]=((df['high']+df['low'])/2) + self.multiplier*df['ATR'] 
+        df["B-L"]=((df['high']+df['low'])/2) - self.multiplier*df['ATR']
         df["U-B"]=df["B-U"]
         df["L-B"]=df["B-L"]
         ind = df.index
         df['Strend']=np.nan
         test = 0
-        for i in range(window,len(df)):
+        for i in range(self.window,len(df)):
             if df['close'][i-1]<=df['U-B'][i-1]:
                 df.loc[ind[i],'U-B']=min(df['B-U'][i],df['U-B'][i-1])
             else: # Crossover
@@ -210,7 +250,7 @@ class Supertrend(Security):
                 df.loc[ind[i],'L-B']=df['B-L'][i] 
     
     
-        for test in range(window,len(df)):
+        for test in range(self.window,len(df)):
             if df['close'][test-1]<=df['U-B'][test-1] and df['close'][test]>df['U-B'][test]:
                 df.loc[ind[test],'Strend']=df['L-B'][test]
                 break
@@ -293,70 +333,87 @@ class Levels(Security):
 ########## Candle Pattern ###############################
 class Doji(Security):
     
-    def search(self,multiplier_avg_candle_threshold=0.05,avg_candle_size_factor='median'):
+    def __init__(self,ohlc_df,multiplier_avg_candle_threshold=0.05,avg_candle_size_factor='median'):
+        Security.__init__(self,ohlc_df)
+        self.multiplier_avg_candle_threshold = multiplier_avg_candle_threshold
+        self.avg_candle_size_factor = avg_candle_size_factor
+    
+    def search(self):
         df = self.ohlc_df.copy(deep = True)
         
-        avg_candle_size = at.compute_average_candle_size(avg_candle_size_factor,df)
-        df["doji"] = abs(df["close"] - df["open"]) <=  (multiplier_avg_candle_threshold * avg_candle_size)
+        avg_candle_size = at.compute_average_candle_size(self.avg_candle_size_factor,df)
+        df["doji"] = abs(df["close"] - df["open"]) <=  (self.multiplier_avg_candle_threshold * avg_candle_size)
         return df
     
 class Hammer(Security):
     
-    def __init__(self,ohlc_df):
+    def __init__(self,ohlc_df,multiplier = 3,threshold = 0.6,err=0.001,percent_ratio = 0.1):
         Security.__init__(self,ohlc_df)
+        self.multiplier = multiplier
+        self.threshold = threshold
+        self.err = err
+        self.percent_ratio = percent_ratio
     
-    def search(self,multiplier = 3,threshold = 0.6,err=0.001,percent_ratio = 0.1):   
+    def search(self):   
         """returns dataframe with hammer candle column"""
         df = self.ohlc_df.copy(deep = True)
-        df["hammer"] = (((df["high"] - df["low"])>multiplier*(df["open"] - df["close"])) & \
-                       ((df["close"] - df["low"])/(err + df["high"] - df["low"]) > threshold) & \
-                       ((df["open"] - df["low"])/(err+ df["high"] - df["low"]) > threshold)) & \
-                       (abs(df["close"] - df["open"]) > percent_ratio* (df["high"] - df["low"]))
+        df["hammer"] = (((df["high"] - df["low"])>self.multiplier*(df["open"] - df["close"])) & \
+                       ((df["close"] - df["low"])/(self.err + df["high"] - df["low"]) > self.threshold) & \
+                       ((df["open"] - df["low"])/(self.err+ df["high"] - df["low"]) > self.threshold)) & \
+                       (abs(df["close"] - df["open"]) > self.percent_ratio* (df["high"] - df["low"]))
         return df
 
 class ShootingStar(Security):
     
-    def __init__(self,ohlc_df):
+    def __init__(self,ohlc_df,multiplier = 3,threshold = 0.6,err=0.001,percent_ratio = 0.1):
         Security.__init__(self,ohlc_df)
+        self.multiplier = multiplier
+        self.threshold = threshold
+        self.err = err
+        self.percent_ratio = percent_ratio
         
-    def search(self,multiplier = 3,threshold = 0.6,err=0.001,percent_ratio = 0.1):
+    def search(self):
         df = self.ohlc_df.copy()
-        df["sstar"] = (((df["high"] - df["low"])>multiplier*(df["open"] - df["close"])) & \
-                   ((df["high"] - df["close"])/(err + df["high"] - df["low"]) > threshold) & \
-                   ((df["high"] - df["open"])/(err + df["high"] - df["low"]) > threshold)) & \
-                   (abs(df["close"] - df["open"]) > percent_ratio* (df["high"] - df["low"]))
+        df["sstar"] = (((df["high"] - df["low"])>self.multiplier*(df["open"] - df["close"])) & \
+                   ((df["high"] - df["close"])/(self.err + df["high"] - df["low"]) > self.threshold) & \
+                   ((df["high"] - df["open"])/(self.err + df["high"] - df["low"]) > self.threshold)) & \
+                   (abs(df["close"] - df["open"]) > self.percent_ratio* (df["high"] - df["low"]))
         return df
 
 class MaruBozu(Security):
     
-    def __init__(self,ohlc_df):
+    def __init__(self,ohlc_df,multiplier_avg_candle=2,percent_ratio_avg_candle = 0.005,avg_candle_size_factor="median"):
         Security.__init__(self,ohlc_df)
+        self.multiplier_avg_candle = multiplier_avg_candle
+        self.percent_ratio_avg_candle = percent_ratio_avg_candle
+        self.avg_candle_size_factor = avg_candle_size_factor
         
-    def search(self,multiplier_avg_candle=2,percent_ratio_avg_candle = 0.005,avg_candle_size_factor="median"):
+    def search(self):
         df = self.ohlc_df.copy()
-        avg_candle_size = at.compute_average_candle_size(avg_candle_size_factor,df)
+        avg_candle_size = at.compute_average_candle_size(self.avg_candle_size_factor,df)
         df["h-c"] = df["high"]-df["close"]
         df["l-o"] = df["low"]-df["open"]
         df["h-o"] = df["high"]-df["open"]
         df["l-c"] = df["low"]-df["close"]
-        df["maru_bozu"] = np.where((df["close"] - df["open"] > multiplier_avg_candle*avg_candle_size) & \
-                                   (df[["h-c","l-o"]].max(axis=1) < percent_ratio_avg_candle*avg_candle_size),"maru_bozu_green",
-                                   np.where((df["open"] - df["close"] > multiplier_avg_candle*avg_candle_size) & \
-                                   (abs(df[["h-o","l-c"]]).max(axis=1) < percent_ratio_avg_candle*avg_candle_size),"maru_bozu_red",False))
+        df["maru_bozu"] = np.where((df["close"] - df["open"] > self.multiplier_avg_candle*avg_candle_size) & \
+                                   (df[["h-c","l-o"]].max(axis=1) < self.percent_ratio_avg_candle*avg_candle_size),"maru_bozu_green",
+                                   np.where((df["open"] - df["close"] > self.multiplier_avg_candle*avg_candle_size) & \
+                                   (abs(df[["h-o","l-c"]]).max(axis=1) < self.percent_ratio_avg_candle*avg_candle_size),"maru_bozu_red",False))
         df.drop(["h-c","l-o","h-o","l-c"],axis=1,inplace=True)
         return df
 
 ############ Slope Trend #########################
 class Slope(Security):
     
-    def __init__(self,ohlc_df):
+    def __init__(self,ohlc_df,points):
         Security.__init__(self,ohlc_df)
+        self.points = points
     
-    def calculate(self,points):
+    def calculate(self):
         "function to calculate the slope of regression line for n consecutive points on a plot"
-        df = self.ohlc_df.iloc[-1*points:,:]
+        df = self.ohlc_df.iloc[-1*self.points:,:]
         y = ((df["open"] + df["close"])/2).values
-        x = np.array(range(points))
+        x = np.array(range(self.points))
         y_scaled = (y - y.min())/(y.max() - y.min())
         x_scaled = (x - x.min())/(x.max() - x.min())
         x_scaled = sm.add_constant(x_scaled)
@@ -367,21 +424,22 @@ class Slope(Security):
     
 class Trend(Security):
     
-    def __init__(self,ohlc_df):
+    def __init__(self,ohlc_df,points,percent_ratio=0.7):
         Security.__init__(self,ohlc_df)
+        self.points = points
+        self.percent_ratio = percent_ratio
         
-
     
-    def show(self,points,percent_ratio=0.7):
+    def show(self):
         "function to assess the trend by analyzing each candle"
         df = self.ohlc_df.copy()
         df["up"] = np.where(df["low"]>=df["low"].shift(1),1,0)
         df["dn"] = np.where(df["high"]<=df["high"].shift(1),1,0)
         if df["close"][-1] > df["open"][-1]:
-            if df["up"][-1*points:].sum() >= percent_ratio*points:
+            if df["up"][-1*self.points:].sum() >= self.percent_ratio*self.points:
                 return "uptrend"
         elif df["open"][-1] > df["close"][-1]:
-            if df["dn"][-1*points:].sum() >= percent_ratio*points:
+            if df["dn"][-1*self.points:].sum() >= self.percent_ratio*self.points:
                 return "downtrend"
         else:
             return "None"
